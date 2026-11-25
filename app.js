@@ -10,6 +10,12 @@
   const BITE_MIN_MS = 5000;
   const BITE_MAX_MS = 20000;
   const JERK_WINDOW_MS = 3000;
+
+  // Tỉ lệ câu trúng (Cơ chốt 25/11): gốc 50%, mỗi Tym của chủ cần +0,1%,
+  // tối đa 95% (luôn còn khả năng hụt). Không hiện số % ra màn hình.
+  const CATCH_BASE_PCT = 50;
+  const CATCH_PER_LIKE_PCT = 0.1;
+  const CATCH_MAX_PCT = 95;
   const SUMMARY_DURATION_MS = 10000;
   const COUNTDOWN_SECONDS = 5;
   const MAX_BANNER_COMMENTS = 10;
@@ -75,6 +81,20 @@
     'Cảm ơn mọi người đã chơi thật vui, phiên câu mới sắp mở ra ngay bây giờ!'
   ];
 
+  // Câu MC nói khi rảnh (không có cá cắn / không ai câu) — nói liên tục,
+  // mỗi câu cách nhau ít nhất IDLE_VOICE_MS, chỉ dùng lệnh thật trong game.
+  const IDLE_LINES = [
+    'Cả nhà thả tym để tăng tỉ lệ câu trúng nào!',
+    'Ai chưa quăng cần thì bình luận câu ngay nhé!',
+    'Cá to đang chờ dưới hồ đó cả nhà ơi!',
+    'Thả tim nhiệt tình lên nào, cá khủng sắp cắn câu rồi!',
+    'Bình luận câu để quăng cần, bình luận lên để giật cá nhé!'
+  ];
+  const IDLE_VOICE_MS = 20000;
+
+  // Màu áo riêng cho từng nhân vật ngồi câu (theo slot 0–9).
+  const MINI_SHIRTS = ['#38bdf8', '#f472b6', '#a3e635', '#fbbf24', '#c084fc', '#34d399', '#fb7185', '#f97316', '#22d3ee', '#e879f9'];
+
   const BOT_NAMES = [
     'Minh Quân', 'Thu Hà', 'Tuấn Anh', 'Ngọc Linh',
     'Hoàng Nam', 'Bảo Trâm', 'Đức Huy', 'Khánh Vy',
@@ -124,6 +144,13 @@
   function isCastCommand(text) {
     const norm = normalizeText(text);
     return norm === 'cau' || norm === 'cau ca' || norm === 'tha can';
+  }
+
+  // Lệnh giật cá: bình luận 'Lên' (hoặc 'Lên câu') khi cá đang cắn thì
+  // giật cần lên — giống như thả tim lúc cá cắn. Like vẫn giật được như cũ.
+  function isJerkCommand(text) {
+    const norm = normalizeText(text);
+    return norm === 'len' || norm === 'len cau';
   }
 
   function userKey(username) {
@@ -481,6 +508,7 @@
   const TTS = (function () {
     let enabled = true;
     let lastSpoken = '';
+    let lastSpeakAt = 0;
     let duckTimer = null;
     const spokenHistory = [];
 
@@ -537,6 +565,7 @@
         utter.onerror = clearDuck;
 
         window.speechSynthesis.speak(utter);
+        lastSpeakAt = Date.now();
         return true;
       } catch (_e) {
         clearDuck();
@@ -568,6 +597,7 @@
       setEnabled,
       isEnabled: () => enabled,
       getLastSpoken: () => lastSpoken,
+      getLastSpeakAt: () => lastSpeakAt,
       getHistory: () => spokenHistory.slice()
     };
   })();
@@ -710,6 +740,7 @@
     dom.pondCanvas = document.getElementById('pondCanvas');
     dom.biteAlert = document.getElementById('biteAlert');
     dom.toastArea = document.getElementById('toastArea');
+    dom.giftBanner = document.getElementById('giftBanner');
     dom.statRods = document.getElementById('statRods');
     dom.statCaught = document.getElementById('statCaught');
     dom.statEscaped = document.getElementById('statEscaped');
@@ -785,7 +816,10 @@
       .map((g, idx) => {
         const rank = idx + 1;
         const prefix = rank === 1 ? '👑 ' : `#${rank} `;
-        return `<span class="gift-leader-pill rank-${rank}">${prefix}${escapeHtml(g.username)} <span class="gift-leader-diamonds">${g.diamonds}💎</span></span>`;
+        const avatarHtml = g.avatar
+          ? `<img src="${escapeHtml(g.avatar)}" class="gift-avatar" alt="">`
+          : `<span class="gift-avatar-fallback">${escapeHtml((g.username || '?').slice(0, 1))}</span>`;
+        return `<span class="gift-leader-pill rank-${rank}">${prefix}${avatarHtml}${escapeHtml(g.username)} <span class="gift-leader-diamonds">${g.diamonds}💎</span> <span class="gift-leader-count">• ${g.count} quà</span></span>`;
       })
       .join('');
   }
@@ -936,6 +970,22 @@
     }, variant === 'huge' ? 4500 : 3000);
   }
 
+  // Banner quà nổi bật: avatar + tên + quà + xu + ưu đãi, hiện 5 giây.
+  let giftBannerTimer = null;
+  function showGiftBanner(info) {
+    if (!dom.giftBanner || !info) return;
+    const qty = info.repeatCount > 1 ? ` ×${info.repeatCount}` : '';
+    const avatarHtml = info.avatar
+      ? `<img src="${escapeHtml(info.avatar)}" class="gift-banner-avatar" alt="">`
+      : `<span class="gift-banner-avatar-fallback">🎁</span>`;
+    dom.giftBanner.innerHTML = `${avatarHtml}<div class="gift-banner-text"><div class="gift-banner-line"><strong>${escapeHtml(info.username)}</strong> đã tặng <strong>${escapeHtml(info.giftName)}${qty}</strong> · ${info.diamondCount}💎</div><div class="gift-banner-perk">${escapeHtml(info.perkText || '')}</div></div>`;
+    dom.giftBanner.classList.remove('hidden');
+    if (giftBannerTimer) clearTimeout(giftBannerTimer);
+    giftBannerTimer = setTimeout(() => {
+      if (dom.giftBanner) dom.giftBanner.classList.add('hidden');
+    }, 5000);
+  }
+
   function updateModeBadge(text, isLive) {
     if (!dom.modeBadge) return;
     dom.modeBadge.textContent = text;
@@ -1001,10 +1051,13 @@
       biteDeadline: 0,
       boost: opts.boost || pendingBoost || null,
       isBot: Boolean(opts.isBot),
-      botJerkAt: 0
+      botJerkAt: 0,
+      likeBonus: 0 // số Tym của chủ cần từ lúc quăng (mỗi Tym +0,1% tỉ lệ trúng)
     };
 
     state.rods.push(rod);
+    // MC đọc tên người chơi khi quăng cần (chỉ người thật, bot không nói).
+    if (!rod.isBot) TTS.speak(`${cleanName} đã quăng cần!`);
     renderStats();
     return rod;
   }
@@ -1082,6 +1135,15 @@
     if (now - rod.biteAt > JERK_WINDOW_MS) {
       escapeFish(rod);
       return { ok: false, caught: false, escaped: true, reason: 'late' };
+    }
+
+    // Tỉ lệ trúng: gốc 50% + 0,1% mỗi Tym chủ cần (tối đa 95%).
+    // Giật hụt -> cá chạy mất như giật trễ.
+    const rngFn = typeof opts.rng === 'function' ? opts.rng : Math.random;
+    const catchChance = Math.min(CATCH_BASE_PCT + CATCH_PER_LIKE_PCT * (rod.likeBonus || 0), CATCH_MAX_PCT);
+    if (rngFn() * 100 >= catchChance) {
+      escapeFish(rod);
+      return { ok: false, caught: false, escaped: true, reason: 'miss', chance: catchChance };
     }
 
     // Successful catch!
@@ -1184,12 +1246,20 @@
       const rod = castRod(cleanName, options);
       return { casted: Boolean(rod), rod };
     }
+
+    if (isJerkCommand(cleanText)) {
+      const result = jerkRod(cleanName, options);
+      return { casted: false, jerked: Boolean(result && result.caught), result };
+    }
     return { casted: false };
   }
 
   function handleLike(username, options) {
     const cleanName = String(username || '').trim();
     if (!cleanName) return { action: 'ignored' };
+    const opts = options || {};
+    // Số Tym trong 1 event (TikTok gộp nhiều Tym vào 1 event).
+    const likeCount = Math.max(1, Number(opts.likeCount) || 1);
 
     const rod = findRodByUser(cleanName);
     if (!rod) {
@@ -1197,14 +1267,17 @@
       return { action: newRod ? 'cast' : 'ignored', rod: newRod };
     }
     if (rod.status === 'biting') {
+      // Tym của chủ cần cũng cộng +0,1% tỉ lệ trúng cho lần giật này.
+      rod.likeBonus = (rod.likeBonus || 0) + likeCount;
       const result = jerkRod(cleanName, options);
       return { action: result.caught ? 'catch' : 'escape', result };
     }
-    // Rod is waiting -> do nothing, keep rod in water
+    // Rod is waiting -> mỗi Tym +0,1% tỉ lệ trúng (ẩn số), cần vẫn ở dưới nước
+    rod.likeBonus = (rod.likeBonus || 0) + likeCount;
     return { action: 'waiting_noop', rod };
   }
 
-  function handleGift(payload) {
+  function handleGift(payload, options) {
     if (!payload) return null;
     const username = String(payload.username || '').trim();
     if (!username) return null;
@@ -1217,9 +1290,10 @@
 
     // Track total diamonds for Top tặng quà — NEVER adds game points!
     if (!state.giftScores[key]) {
-      state.giftScores[key] = { username, diamonds: 0, count: 0 };
+      state.giftScores[key] = { username, diamonds: 0, count: 0, avatar: '' };
     }
     state.giftScores[key].username = username;
+    if (payload.avatar) state.giftScores[key].avatar = payload.avatar;
     state.giftScores[key].diamonds += totalDiamonds;
     state.giftScores[key].count += repeatCount;
     renderGiftBoard();
@@ -1270,14 +1344,36 @@
       if (boostApplied === 'gold') {
         const line = `🎁 ${username} — lần câu sau có Cần vàng!`;
         pushComment({ username, type: 'gift', badge: '★ CẦN VÀNG', text: line });
-        showToast(`★ ${username} tặng ${giftName} (${diamondCount}💎) — nhận Cần vàng chắc cá hiếm!`, 'boost');
         AudioEngine.playFanfare();
         TTS.speak(`Cảm ơn ${username} đã tặng ${giftName}! Lần câu sau của ${username} có Cần vàng, chắc chắn câu cá hiếm hoặc cá khủng!`);
       } else {
         const line = `🎁 ${username} — lần câu sau có Mồi ngon!`;
         pushComment({ username, type: 'gift', badge: '● MỒI NGON', text: line });
-        showToast(`● ${username} tặng ${giftName} (${diamondCount}💎) — nhận Mồi ngon dễ cá to!`, 'boost');
         TTS.speak(`Cảm ơn ${username} đã tặng ${giftName}! Lần câu sau của ${username} có Mồi ngon, tăng tỉ lệ cá to!`);
+      }
+    }
+
+    // Banner quà nổi bật cho MỌI món quà (avatar + tên + quà + xu + ưu đãi),
+    // hiện 5 giây để đọc rồi tự ẩn.
+    const perkText = boostApplied === 'gold'
+      ? 'Cần vàng — lần câu sau chắc cá hiếm'
+      : boostApplied === 'bait'
+        ? 'Mồi ngon — lần câu sau dễ cá to'
+        : 'Ủng hộ chủ thớt';
+    showGiftBanner({
+      avatar: payload.avatar || '',
+      username,
+      giftName,
+      diamondCount,
+      repeatCount,
+      perkText
+    });
+
+    // Tặng 1 xu cũng giật cần lên (Cơ 25/11): đang cắn câu thì giật.
+    if (diamondCount === 1) {
+      const rod = findRodByUser(username);
+      if (rod && rod.status === 'biting') {
+        jerkRod(username, options || {});
       }
     }
 
@@ -1505,6 +1601,12 @@
       }
 
       tickDemoBots(now);
+
+      // MC nói liên tục cả khi rảnh: 20s không có câu thoại nào thì nói 1 câu.
+      if (TTS.isEnabled() && now - TTS.getLastSpeakAt() >= IDLE_VOICE_MS) {
+        const line = IDLE_LINES[Math.floor(Math.random() * IDLE_LINES.length)];
+        TTS.speak(line);
+      }
     } else if (state.phase === 'summary') {
       state.summaryRemainingMs -= dt;
       if (dom.summaryTimerFill) {
@@ -1863,6 +1965,41 @@
     }
   }
 
+  // Nhân vật ngồi câu thu nhỏ cho từng người chơi (1 nhân vật / 1 cần).
+  // Ngồi trên bờ ngay chân cần, đội nón lá, áo màu riêng theo slot;
+  // nghiêng người khi cá cắn câu.
+  function drawMiniFisherman(ctx, x, y, t, biting, shirtColor) {
+    ctx.save();
+    ctx.translate(x, y - 6 + (biting ? Math.sin(t * 14) * 2 : Math.sin(t * 2) * 1.5));
+    if (biting) ctx.rotate(-0.12);
+    // Chân ngồi
+    ctx.fillStyle = '#5a341a';
+    ctx.beginPath();
+    ctx.roundRect(-13, 2, 26, 7, 3);
+    ctx.fill();
+    // Thân (áo màu riêng)
+    ctx.fillStyle = shirtColor || '#38bdf8';
+    ctx.beginPath();
+    ctx.roundRect(-9, -14, 18, 17, 6);
+    ctx.fill();
+    // Đầu
+    ctx.fillStyle = '#f6c89f';
+    ctx.beginPath();
+    ctx.arc(0, -18, 7, 0, Math.PI * 2);
+    ctx.fill();
+    // Nón lá
+    ctx.fillStyle = '#e8c268';
+    ctx.beginPath();
+    ctx.moveTo(-13, -21);
+    ctx.quadraticCurveTo(0, -36, 13, -21);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#b98a2f';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawActiveRods(ctx, t) {
     if (state.rods.length === 0) {
       // Friendly empty-pond prompt (centered & crisp for mobile)
@@ -1887,6 +2024,9 @@
     state.rods.forEach((rod) => {
       const slot = ROD_SLOTS[rod.slot] || ROD_SLOTS[0];
       const biting = rod.status === 'biting';
+
+      // Nhân vật ngồi câu riêng cho từng người chơi (tên đã có ở pill dưới phao).
+      drawMiniFisherman(ctx, slot.bankX, slot.bankY, t, biting, MINI_SHIRTS[rod.slot % MINI_SHIRTS.length]);
 
       // Rod tip slightly ahead and above bank slot
       const tipX = slot.bankX + (slot.bobberX >= 520 ? -16 : 16);
@@ -2005,7 +2145,9 @@
       pondCtx.clearRect(0, 0, w, h);
       drawSkyAndBank(pondCtx, w, t);
       drawWaterAndShadows(pondCtx, w, h, t);
-      drawFisherman(pondCtx, t);
+      // Có người chơi thì mỗi người có nhân vật ngồi câu riêng;
+      // chỉ vẽ ngư dân lớn khi hồ đang trống.
+      if (state.rods.length === 0) drawFisherman(pondCtx, t);
       drawActiveRods(pondCtx, t);
     }
     Confetti.updateAndDraw();
@@ -2081,7 +2223,7 @@
     const data = parseAblyData(msg.data);
     if (!data) return;
     if (isStaleAblyMsg(msg, data)) return;
-    handleLike(data.user || data.username || 'Khán giả');
+    handleLike(data.user || data.username || 'Khán giả', { likeCount: data.likeCount || 1 });
   }
 
   function onAblyGift(msg) {
