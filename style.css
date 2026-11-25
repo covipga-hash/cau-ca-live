@@ -33,14 +33,10 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #04141b;
+  background: linear-gradient(165deg, var(--pond-1) 0%, var(--pond-2) 34%, var(--pond-3) 68%, var(--pond-4) 100%);
   color: var(--text-main);
   font-family: "Segoe UI", "Roboto", "Noto Sans", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
-}
-
-body.clean-mode {
-  background: transparent;
 }
 
 .viewport-fit {
@@ -96,7 +92,7 @@ body.clean-mode .stage {
   justify-content: space-between;
   gap: 14px;
   padding: 8px 16px;
-  height: 64px;
+  min-height: 64px;
   flex-shrink: 0;
   background: var(--surface);
   border: 1px solid var(--border-subtle);
@@ -196,7 +192,7 @@ body.clean-mode .stage {
   border-radius: 999px;
   background: linear-gradient(135deg, #f59e0b, #ef4444);
   color: #fff;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 900;
   letter-spacing: 0.6px;
   white-space: nowrap;
@@ -923,12 +919,12 @@ body.clean-mode .stage {
 }
 
 .gift-suggestion-box.gift-banner-strip .gift-suggest-title {
-  font-size: 17px;
+  font-size: 16px;
 }
 
 .gift-suggestion-box.gift-banner-strip .gift-chip {
   height: 44px;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .gift-suggest-title {
@@ -942,7 +938,7 @@ body.clean-mode .stage {
 
 .gift-suggest-row {
   display: grid;
-  grid-template-columns: 0.86fr 1fr 1.16fr;
+  grid-template-columns: 0.95fr 1fr 1.15fr;
   gap: 8px;
   flex: 1;
   min-width: 0;
@@ -957,6 +953,7 @@ body.clean-mode .stage {
   padding: 0 8px;
   border-radius: 9px;
   font-size: 13px;
+  overflow: hidden;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -980,6 +977,10 @@ body.clean-mode .stage {
 .chip-tier {
   font-weight: 900;
   color: var(--gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .chip-support .chip-tier {
@@ -993,6 +994,10 @@ body.clean-mode .stage {
 .chip-desc {
   color: var(--text-main);
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 /* Overlays */
