@@ -9,7 +9,8 @@
   const SESSION_TARGET_FISH = 30;
   const BITE_MIN_MS = 5000;
   const BITE_MAX_MS = 20000;
-  const JERK_WINDOW_MS = 3000;
+  const JERK_WINDOW_MS = 10000; // Cửa sổ giật 10s — đủ thời gian thả 10 Tym
+  const JERK_TYM_NEEDED = 10; // Số Tym của chủ cần khi cá cắn để giật cá lên
 
   // Tỉ lệ câu trúng (Cơ chốt 25/11): gốc 50%, mỗi Tym của chủ cần +0,1%,
   // tối đa 95% (luôn còn khả năng hụt). Không hiện số % ra màn hình.
@@ -88,7 +89,7 @@
     'Ai chưa quăng cần thì bình luận câu ngay nhé!',
     'Cá to đang chờ dưới hồ đó cả nhà ơi!',
     'Thả tim nhiệt tình lên nào, cá khủng sắp cắn câu rồi!',
-    'Bình luận câu để quăng cần, bình luận lên để giật cá nhé!'
+    'Bình luận câu để quăng cần, bình luận lên hoặc thả 10 tim để giật cá nhé!'
   ];
   const IDLE_VOICE_MS = 20000;
 
@@ -147,7 +148,8 @@
   }
 
   // Lệnh giật cá: bình luận 'Lên' (hoặc 'Lên câu') khi cá đang cắn thì
-  // giật cần lên — giống như thả tim lúc cá cắn. Like vẫn giật được như cũ.
+  // giật cần lên ngay — như cũ. Ngoài ra còn có cách lên câu bằng 10 Tym
+  // (thả tim đủ 10 cái khi cắn cũng tự giật lên).
   function isJerkCommand(text) {
     const norm = normalizeText(text);
     return norm === 'len' || norm === 'len cau';
@@ -990,7 +992,8 @@
       return;
     }
     const latest = bitingRods[bitingRods.length - 1];
-    dom.biteAlert.textContent = `🐟 CÁ CẮN CÂU! ${latest.username} thả tim giật ngay!`;
+    const jerkProgress = Math.min(JERK_TYM_NEEDED, Math.max(0, (latest.likeBonus || 0) - (latest.bonusAtBite || 0)));
+    dom.biteAlert.textContent = `🐟 CÁ CẮN CÂU! ${latest.username} gõ "lên" hoặc thả tim (${jerkProgress}/10 Tym) để giật!`;
     dom.biteAlert.classList.remove('hidden');
   }
 
@@ -1090,7 +1093,8 @@
       boost: opts.boost || pendingBoost || null,
       isBot: Boolean(opts.isBot),
       botJerkAt: 0,
-      likeBonus: 0 // số Tym của chủ cần từ lúc quăng (mỗi Tym +0,1% tỉ lệ trúng)
+      likeBonus: 0, // số Tym của chủ cần từ lúc quăng (mỗi Tym +0,1% tỉ lệ trúng)
+      bonusAtBite: 0 // likeBonus lúc cá cắn — Tym trước khi cắn chỉ tăng %, không tính vào 10 Tym
     };
 
     state.rods.push(rod);
@@ -1110,6 +1114,7 @@
     rod.status = 'biting';
     rod.biteAt = now;
     rod.biteDeadline = now + JERK_WINDOW_MS;
+    rod.bonusAtBite = rod.likeBonus || 0;
 
     // Schedule bot reaction (~60% catch rate)
     if (rod.isBot) {
@@ -1117,14 +1122,14 @@
       if (Math.random() < BOT_CATCH_RATE) {
         rod.botJerkAt = now + 550 + Math.floor(Math.random() * 1700);
       } else {
-        rod.botJerkAt = 0; // Misses the 3s window -> fish escapes
+        rod.botJerkAt = 0; // Misses the 10s window -> fish escapes
       }
     }
 
     setFishermanMood('reeling', 0);
     AudioEngine.playSplash();
     renderBiteAlert();
-    TTS.speak(`Cá cắn câu! ${rod.username} giật cần ngay!`);
+    TTS.speak(`Cá cắn câu! ${rod.username} bình luận lên hoặc thả 10 tim để giật cần lên!`);
     return true;
   }
 
@@ -1169,7 +1174,7 @@
     }
 
     const now = typeof opts.now === 'number' ? opts.now : Date.now();
-    // Late jerk beyond 3-second window -> fish escapes
+    // Late jerk beyond 10-second window -> fish escapes
     if (now - rod.biteAt > JERK_WINDOW_MS) {
       escapeFish(rod);
       return { ok: false, caught: false, escaped: true, reason: 'late' };
@@ -1177,7 +1182,7 @@
 
     // Tỉ lệ trúng: gốc 50% + 0,1% mỗi Tym chủ cần (tối đa 95%).
     // Giật hụt -> cá chạy mất như giật trễ.
-    // Bot giữ kiểu cũ: giật kịp trong 3s là trúng (~60% do BOT_CATCH_RATE) — tỉ lệ hụt
+    // Bot giữ kiểu cũ: giật kịp trong 10s là trúng (~60% do BOT_CATCH_RATE) — tỉ lệ hụt
     // chỉ áp cho người chơi thật, tránh bot chạy mất quá nhiều làm game im ắng.
     const rngFn = typeof opts.rng === 'function' ? opts.rng : Math.random;
     if (!rod.isBot) {
@@ -1290,6 +1295,8 @@
     }
 
     if (isJerkCommand(cleanText)) {
+      // 'Lên' giật ngay như cũ (Cơ 25/11 'Như cũ nhé': giữ 'Lên' + tặng 1 xu,
+      // THÊM 10 Tym làm cách lên câu nữa — không thay thế).
       const result = jerkRod(cleanName, options);
       return { casted: false, jerked: Boolean(result && result.caught), result };
     }
@@ -1309,10 +1316,16 @@
       return { action: newRod ? 'cast' : 'ignored', rod: newRod };
     }
     if (rod.status === 'biting') {
-      // Tym của chủ cần cũng cộng +0,1% tỉ lệ trúng cho lần giật này.
+      // Tym của chủ cần: +0,1% tỉ lệ trúng/cái (từ lúc quăng) VÀ đếm vào 10 Tym
+      // để lên câu (chỉ tính Tym từ lúc cá cắn). Đủ 10 Tym -> tự giật lên.
       rod.likeBonus = (rod.likeBonus || 0) + likeCount;
-      const result = jerkRod(cleanName, options);
-      return { action: result.caught ? 'catch' : 'escape', result };
+      const progress = (rod.likeBonus || 0) - (rod.bonusAtBite || 0);
+      renderBiteAlert();
+      if (progress >= JERK_TYM_NEEDED) {
+        const result = jerkRod(cleanName, options);
+        return { action: result.caught ? 'catch' : 'escape', result };
+      }
+      return { action: 'jerk_progress', progress, rod };
     }
     // Rod is waiting -> mỗi Tym +0,1% tỉ lệ trúng (ẩn số), cần vẫn ở dưới nước
     rod.likeBonus = (rod.likeBonus || 0) + likeCount;
@@ -1411,7 +1424,8 @@
       perkText
     });
 
-    // Tặng 1 xu cũng giật cần lên (Cơ 25/11): đang cắn câu thì giật.
+    // Tặng 1 xu giật cần lên như cũ (Cơ 25/11 'Như cũ nhé': giữ tặng 1 xu,
+    // THÊM 10 Tym làm cách lên câu nữa — không thay thế).
     if (diamondCount === 1) {
       const rod = findRodByUser(username);
       if (rod && rod.status === 'biting') {
