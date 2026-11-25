@@ -782,22 +782,31 @@
     if (!dom.stage) return;
     const vw = window.innerWidth || 1080;
     const vh = window.innerHeight || 1920;
-    // Viewport ngắn hơn 9:16 (Chrome điện thoại còn thanh tab/địa chỉ/điều hướng):
-    // thu ngắn chiều cao stage để scale theo chiều rộng — game lấp đầy viewport.
+    // Viewport ngắn hơn 9:16 (Chrome điện thoại còn thanh tab/địa chỉ/điều hướng,
+    // hoặc cửa sổ PC không fullscreen): thu ngắn chiều cao stage để scale theo
+    // chiều rộng — game lấp đầy viewport.
     // V4 chỉ thu ngắn stage, giữ ao 900px -> bảng dưới (feed) bị co về ~0 và biến mất
     // trên điện thoại (Cơ báo 25/11 17:24). V4.1: ao co theo chiều cao còn lại (giữ
-    // đúng tỉ lệ 1040:900, không méo hình), feed luôn giữ tối thiểu 280px.
+    // đúng tỉ lệ 1040:900, không méo hình), feed luôn giữ tối thiểu 280px — nhưng
+    // ao chỉ còn ~67% bề rộng trên viewport ngắn (Cơ báo "bé quá" 25/11 22:36,
+    // viewport ~1080x1407: ao 724px).
+    // V4.5: ao LUÔN giữ đúng kích thước gốc 1040x900 (to nhất có thể); stage cao
+    // thành FIXED_REST + 900 + FEED_MIN = 1680 và scale toàn cục thu nhỏ stage
+    // vừa viewport. Ao trên màn hình: 1080x1407 -> 871px (was 724px, +20%),
+    // 1080x1080 -> 669px (was 394px). Đồng thời sửa lỗi v4.1: ở tỉ lệ 1.56-1.78
+    // ao từng bị kéo rộng quá 1040 và cắt 2 bên.
     // Các phần cố định ngoài ao và feed (header 64 + stats 106 + top3 186 + gift 64
     // + padding 28 + gap 50) ≈ 500px.
     const FIXED_REST = 500;
     const FEED_MIN = 280;
-    const POND_MIN = 360;
+    const POND_W = 1040;
+    const POND_H = 900;
     let stageH = 1920;
     if (vh / vw < 1920 / 1080) {
       const natural = Math.floor((vh * 1080) / vw);
-      stageH = Math.max(FIXED_REST + POND_MIN + FEED_MIN, natural);
-      const pondH = Math.max(POND_MIN, stageH - FIXED_REST - FEED_MIN);
-      const pondW = Math.round((pondH * 1040) / 900);
+      stageH = Math.max(FIXED_REST + POND_H + FEED_MIN, natural);
+      const pondH = POND_H;
+      const pondW = POND_W;
       dom.stage.style.height = stageH + 'px';
       if (dom.pondCanvas) {
         dom.pondCanvas.style.width = pondW + 'px';
