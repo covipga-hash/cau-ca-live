@@ -15,7 +15,7 @@
       <header class="game-header">
         <div class="brand-group">
           <h1 class="game-title">🎣 CÂU CÁ LIVE</h1>
-          <p class="game-subtitle">Thả tim / gõ <strong>“câu”</strong> quăng cần • Thả tim ngay khi cá cắn để giật!</p>
+          <p class="game-subtitle">Thả tim / gõ <strong>“câu”</strong> quăng cần • gõ <strong>“lên”</strong> hoặc thả tim khi cá cắn để giật • Thả tym để tăng tỉ lệ câu trúng</p>
         </div>
         <div class="header-meta">
           <span class="mode-badge" id="modeBadge">DEMO TỰ ĐỘNG</span>
@@ -29,6 +29,7 @@
           <canvas id="pondCanvas" width="1040" height="900"></canvas>
           <div id="biteAlert" class="bite-alert hidden" role="status" aria-live="polite"></div>
           <div id="toastArea" class="toast-area" role="status" aria-live="polite"></div>
+          <div id="giftBanner" class="gift-banner hidden" role="status" aria-live="polite"></div>
         </div>
       </section>
 
@@ -67,6 +68,25 @@
         <div id="top3Board" class="top3-grid"></div>
       </section>
 
+      <!-- Banner quà tặng: liệt kê mức quà + ưu đãi (nổi bật trên màn hình) -->
+      <footer id="giftSuggestionBox" class="gift-suggestion-box gift-banner-strip" aria-label="Gợi ý tặng quà">
+        <span class="gift-suggest-title">🎁 TẶNG QUÀ NHẬN ƯU ĐÃI:</span>
+        <div class="gift-suggest-row">
+          <div class="gift-chip chip-support">
+            <span class="chip-tier">1💎–4💎 Ủng hộ</span>
+            <span class="chip-desc">— Ủng hộ chủ thớt</span>
+          </div>
+          <div class="gift-chip chip-bait">
+            <span class="chip-tier">5💎–9💎 Mồi ngon</span>
+            <span class="chip-desc">— Lần câu sau dễ cá to</span>
+          </div>
+          <div class="gift-chip chip-gold">
+            <span class="chip-tier">10💎+ Cần vàng</span>
+            <span class="chip-desc">— Lần câu sau chắc cá hiếm</span>
+          </div>
+        </div>
+      </footer>
+
       <!-- 5. Balanced 2-Column Bottom Section: Comment/Gift Banner (Left) + Top 4-8 (Right) -->
       <section class="bottom-columns" aria-label="Bình luận mới nhất và Bảng xếp hạng 4 đến 8">
         <!-- Left Column: Single Comment + Top Gifters Banner (#giftBoard) -->
@@ -96,24 +116,6 @@
       </section>
 
       <!-- 6. Single-Line Bottom Gift-Suggestion Banner (ONLY place listing gift effects) -->
-      <footer id="giftSuggestionBox" class="gift-suggestion-box" aria-label="Gợi ý tặng quà">
-        <span class="gift-suggest-title">🎁 QUÀ:</span>
-        <div class="gift-suggest-row">
-          <div class="gift-chip chip-support">
-            <span class="chip-tier">1💎 Ủng hộ</span>
-            <span class="chip-desc">— Ủng hộ chủ thớt</span>
-          </div>
-          <div class="gift-chip chip-bait">
-            <span class="chip-tier">5💎 Mồi ngon</span>
-            <span class="chip-desc">— Lần câu sau dễ cá to</span>
-          </div>
-          <div class="gift-chip chip-gold">
-            <span class="chip-tier">10💎+ Cần vàng</span>
-            <span class="chip-desc">— Lần câu sau chắc cá hiếm</span>
-          </div>
-        </div>
-      </footer>
-
       <!-- Confetti Canvas -->
       <canvas id="confettiCanvas" class="confetti-canvas" width="1080" height="1920"></canvas>
 
@@ -177,6 +179,6 @@
        KHÔNG BAO GIỜ để key publish vào đây. -->
   <script src="https://cdn.jsdelivr.net/npm/@ably/pubsub-device@3.2.0/dist/cdn/ably.min.js"></script>
   <script src="ably-config.js"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
