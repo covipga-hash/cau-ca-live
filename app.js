@@ -2100,6 +2100,10 @@
       updateModeBadge(`LIVE @${data.username || state.liveUser}`, true);
     } else if (data.message && String(data.message).indexOf('Đang kết nối') !== -1) {
       updateModeBadge(`ĐANG KẾT NỐI @${data.username || state.liveUser}`, true);
+    } else if (state.ablyConnected) {
+      // Ably vẫn nối tốt, chỉ là chưa có live TikTok gắn vào — không phải
+      // "mất kết nối" (event vẫn chảy bình thường).
+      updateModeBadge(`CHỜ LIVE @${state.liveUser}`, false);
     } else {
       updateModeBadge(`MẤT KẾT NỐI @${state.liveUser}`, true);
     }
@@ -2136,15 +2140,21 @@
 
     realtime.connection.on('connected', () => {
       state.ablyConnected = true;
+      // Nối lại Ably xong: về trạng thái chờ live ngay; event status
+      // (heartbeat ≤10s) sẽ sửa thành LIVE nếu live đã gắn.
+      if (state.mode === 'live') updateModeBadge(`CHỜ LIVE @${state.liveUser}`, false);
     });
     realtime.connection.on('disconnected', () => {
       state.ablyConnected = false;
+      if (state.mode === 'live') updateModeBadge(`MẤT KẾT NỐI @${state.liveUser}`, true);
     });
     realtime.connection.on('suspended', () => {
       state.ablyConnected = false;
+      if (state.mode === 'live') updateModeBadge(`MẤT KẾT NỐI @${state.liveUser}`, true);
     });
     realtime.connection.on('failed', (err) => {
       state.ablyConnected = false;
+      if (state.mode === 'live') updateModeBadge(`MẤT KẾT NỐI @${state.liveUser}`, true);
       console.error('[Ably] connection failed:', err && err.message ? err.message : err);
     });
 
@@ -2269,7 +2279,7 @@
     AudioEngine.setEnabled(config.musicEnabled);
 
     if (state.mode === 'live') {
-      updateModeBadge(`LIVE @${state.liveUser}`, true);
+      updateModeBadge(`CHỜ LIVE @${state.liveUser}`, false);
       if (dom.startModeHint) {
         dom.startModeHint.textContent = `Chế độ TikTok Live (@${state.liveUser}) • Tự động kết nối khi bấm Bắt đầu`;
       }
