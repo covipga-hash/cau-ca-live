@@ -774,14 +774,42 @@
     const vw = window.innerWidth || 1080;
     const vh = window.innerHeight || 1920;
     // Viewport ngắn hơn 9:16 (Chrome điện thoại còn thanh tab/địa chỉ/điều hướng):
-    // thu ngắn chiều cao stage (ao giữ nguyên 900px, bảng dưới co lại) để scale theo
-    // chiều rộng — game lấp đầy viewport thay vì co nhỏ giữa viền đen.
+    // thu ngắn chiều cao stage để scale theo chiều rộng — game lấp đầy viewport.
+    // V4 chỉ thu ngắn stage, giữ ao 900px -> bảng dưới (feed) bị co về ~0 và biến mất
+    // trên điện thoại (Cơ báo 25/11 17:24). V4.1: ao co theo chiều cao còn lại (giữ
+    // đúng tỉ lệ 1040:900, không méo hình), feed luôn giữ tối thiểu 280px.
+    // Các phần cố định ngoài ao và feed (header 64 + stats 106 + top3 186 + gift 64
+    // + padding 28 + gap 50) ≈ 500px.
+    const FIXED_REST = 500;
+    const FEED_MIN = 280;
+    const POND_MIN = 360;
     let stageH = 1920;
     if (vh / vw < 1920 / 1080) {
-      stageH = Math.max(1200, Math.floor((vh * 1080) / vw));
+      const natural = Math.floor((vh * 1080) / vw);
+      stageH = Math.max(FIXED_REST + POND_MIN + FEED_MIN, natural);
+      const pondH = Math.max(POND_MIN, stageH - FIXED_REST - FEED_MIN);
+      const pondW = Math.round((pondH * 1040) / 900);
       dom.stage.style.height = stageH + 'px';
+      if (dom.pondCanvas) {
+        dom.pondCanvas.style.width = pondW + 'px';
+        dom.pondCanvas.style.height = pondH + 'px';
+        const pondStageEl = dom.pondCanvas.parentElement;
+        if (pondStageEl) {
+          pondStageEl.style.width = pondW + 'px';
+          pondStageEl.style.height = pondH + 'px';
+        }
+      }
     } else {
       dom.stage.style.height = '';
+      if (dom.pondCanvas) {
+        dom.pondCanvas.style.width = '';
+        dom.pondCanvas.style.height = '';
+        const pondStageEl = dom.pondCanvas.parentElement;
+        if (pondStageEl) {
+          pondStageEl.style.width = '';
+          pondStageEl.style.height = '';
+        }
+      }
     }
     const scale = Math.min(vw / 1080, vh / stageH);
     dom.stage.style.transform = `scale(${scale})`;
