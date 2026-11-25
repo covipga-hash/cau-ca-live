@@ -2117,8 +2117,12 @@
     if (state.caughtFlash) {
       const flash = state.caughtFlash;
       const sp = FISH_SPECIES.find((s) => s.id === flash.speciesId) || FISH_SPECIES[0];
+      // Keep the whole fish inside the pond: it spans ~134px left (tail)
+      // to ~96px right (head) of its center, so clamp the center x —
+      // at an edge bobber (slot 0, bobberX=82) the tail stuck out of the pond.
+      const flashX = Math.max(140, Math.min(950, flash.x));
       ctx.save();
-      ctx.translate(flash.x, flash.y - 46);
+      ctx.translate(flashX, flash.y - 46);
       ctx.rotate(-0.25);
       ctx.globalAlpha = 0.95;
       drawDetailedFish(ctx, 96, sp, Math.sin(t * 6) * 8);
