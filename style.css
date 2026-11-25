@@ -104,6 +104,7 @@ body.clean-mode .stage {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -122,6 +123,8 @@ body.clean-mode .stage {
   font-size: 14px;
   color: var(--text-muted);
   line-height: 1.35;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .game-subtitle strong {
