@@ -24,17 +24,17 @@
 
   const FISH_SPECIES = [
     // Common (55%)
-    { id: 'ca_ro', name: 'Cá rô', rarity: 'common', minPoints: 10, maxPoints: 20, minWeight: 0.2, maxWeight: 0.8 },
-    { id: 'ca_diec', name: 'Cá diếc', rarity: 'common', minPoints: 15, maxPoints: 30, minWeight: 0.3, maxWeight: 1.0 },
+    { id: 'ca_ro', name: 'Cá rô', rarity: 'common', minPoints: 10, maxPoints: 20, minWeight: 0.2, maxWeight: 0.8, body: '#6b7c2e', belly: '#a8b06a', fin: '#4a5a1e', mark: 'spiny' },
+    { id: 'ca_diec', name: 'Cá diếc', rarity: 'common', minPoints: 15, maxPoints: 30, minWeight: 0.3, maxWeight: 1.0, body: '#b8c4c8', belly: '#e8ecec', fin: '#8a9aa0', mark: null },
     // Uncommon (30%)
-    { id: 'ca_chep', name: 'Cá chép', rarity: 'uncommon', minPoints: 50, maxPoints: 80, minWeight: 0.5, maxWeight: 3.0 },
-    { id: 'ca_tre', name: 'Cá trê', rarity: 'uncommon', minPoints: 60, maxPoints: 100, minWeight: 0.5, maxWeight: 2.5 },
+    { id: 'ca_chep', name: 'Cá chép', rarity: 'uncommon', minPoints: 50, maxPoints: 80, minWeight: 0.5, maxWeight: 3.0, body: '#e07830', belly: '#f2b06a', fin: '#b85a1e', mark: null },
+    { id: 'ca_tre', name: 'Cá trê', rarity: 'uncommon', minPoints: 60, maxPoints: 100, minWeight: 0.5, maxWeight: 2.5, body: '#3a4a52', belly: '#6a7a82', fin: '#2a363c', mark: 'whiskers' },
     // Rare (12%)
-    { id: 'ca_loc', name: 'Cá lóc', rarity: 'rare', minPoints: 200, maxPoints: 350, minWeight: 0.8, maxWeight: 4.0 },
-    { id: 'ca_vang', name: 'Cá vàng', rarity: 'rare', minPoints: 300, maxPoints: 500, minWeight: 0.3, maxWeight: 1.5 },
+    { id: 'ca_loc', name: 'Cá lóc', rarity: 'rare', minPoints: 200, maxPoints: 350, minWeight: 0.8, maxWeight: 4.0, body: '#5a6b3a', belly: '#9aa86a', fin: '#3e4a26', mark: 'spots' },
+    { id: 'ca_vang', name: 'Cá vàng', rarity: 'rare', minPoints: 300, maxPoints: 500, minWeight: 0.3, maxWeight: 1.5, body: '#f2b01e', belly: '#ffe08a', fin: '#d89410', mark: null },
     // Huge (3%)
-    { id: 'ca_ho', name: 'Cá hô', rarity: 'huge', minPoints: 1000, maxPoints: 1000, minWeight: 5.0, maxWeight: 20.0 },
-    { id: 'ca_map_nuoc_ngot', name: 'Cá mập nước ngọt', rarity: 'huge', minPoints: 1000, maxPoints: 1000, minWeight: 8.0, maxWeight: 30.0 }
+    { id: 'ca_ho', name: 'Cá hô', rarity: 'huge', minPoints: 1000, maxPoints: 1000, minWeight: 5.0, maxWeight: 20.0, body: '#5a7a94', belly: '#a8c0d0', fin: '#3e5a6e', mark: null },
+    { id: 'ca_map_nuoc_ngot', name: 'Cá mập nước ngọt', rarity: 'huge', minPoints: 1000, maxPoints: 1000, minWeight: 8.0, maxWeight: 30.0, body: '#6a7a8a', belly: '#c8d4dc', fin: '#4a5a6a', mark: 'dorsal' }
   ];
 
   // Exact 26-gift real TikTok catalog
@@ -696,6 +696,7 @@
     giftScores: Object.create(null),   // key -> { username, diamonds, count }
     pendingBoosts: Object.create(null), // key -> 'bait' | 'gold'
     biggestFish: null, // { username, name, rarity, weight, points }
+    caughtFlash: null, // { speciesId, x, y, until } — just-caught fish shown big for ~2.5s
     comments: [], // latest 10 items, newest at index 0
     prevTop3Keys: [],
     fishermanMood: 'waiting', // 'waiting' | 'reeling' | 'excited' | 'disappointed'
@@ -720,14 +721,20 @@
     }
   };
 
-  // Ambient pond fish shadows spread across deep water (y: 370..840)
-  const fishShadows = Array.from({ length: 9 }, (_, i) => ({
-    x: 80 + i * 115,
-    y: 385 + (i % 5) * 105,
-    speed: (0.55 + (i % 3) * 0.3) * (i % 2 === 0 ? 1 : -1),
-    size: 24 + (i % 3) * 10,
-    phase: i * 1.1
-  }));
+  // Ambient pond fish: each swims as a DETAILED fish of one of the 8 species
+  // (Cơ 25/11: thêm hình cá thật/vẽ vào) — huge species swim bigger.
+  const fishShadows = Array.from({ length: 9 }, (_, i) => {
+    const species = FISH_SPECIES[i % FISH_SPECIES.length];
+    const sizeScale = species.rarity === 'huge' ? 1.5 : species.rarity === 'rare' ? 1.15 : 1;
+    return {
+      x: 80 + i * 115,
+      y: 385 + (i % 5) * 105,
+      speed: (0.55 + (i % 3) * 0.3) * (i % 2 === 0 ? 1 : -1),
+      size: (24 + (i % 3) * 10) * sizeScale,
+      phase: i * 1.1,
+      species
+    };
+  });
 
   const dom = {};
 
@@ -1215,6 +1222,14 @@
 
     state.sessionCaught += 1;
 
+    // Show the caught fish big above the water for ~2.5s.
+    state.caughtFlash = {
+      speciesId: fish.id,
+      x: rod.slot.bobberX,
+      y: rod.slot.bobberY,
+      until: now + 2500
+    };
+
     // Update biggest fish strictly if heavier
     if (!state.biggestFish || fish.weight > state.biggestFish.weight) {
       state.biggestFish = {
@@ -1626,6 +1641,7 @@
 
   function tick(nowOverride) {
     const now = typeof nowOverride === 'number' ? nowOverride : Date.now();
+    if (state.caughtFlash && now >= state.caughtFlash.until) state.caughtFlash = null;
     const dt = clamp(now - lastTickAt, 0, 2000);
     lastTickAt = now;
 
@@ -1965,6 +1981,100 @@
     ctx.restore();
   }
 
+  // Draw a DETAILED fish of a given species (facing +x, centered at 0,0).
+  // Body = ellipse with vertical gradient (body -> belly), tail + dorsal +
+  // pectoral fins, eye, gill line, scale hints; specials per species:
+  // whiskers (cá trê), spots (cá lóc), spiny dorsal (cá rô), tall dorsal (cá mập).
+  // `size` = half-length of the body; `wag` = tail sway in px.
+  function drawDetailedFish(ctx, size, species, wag) {
+    const s = species || FISH_SPECIES[0];
+    const bodyGrad = ctx.createLinearGradient(0, -size * 0.38, 0, size * 0.38);
+    bodyGrad.addColorStop(0, s.body);
+    bodyGrad.addColorStop(1, s.belly);
+    // Tail fin (forked, sways with wag)
+    ctx.fillStyle = s.fin;
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.8, 0);
+    ctx.lineTo(-size * 1.4, -size * 0.42 + wag);
+    ctx.lineTo(-size * 1.15, 0);
+    ctx.lineTo(-size * 1.4, size * 0.42 + wag);
+    ctx.closePath();
+    ctx.fill();
+    // Body
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size, size * 0.38, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Dorsal fin (spiny zigzag for cá rô, tall for cá mập, plain otherwise)
+    ctx.fillStyle = s.fin;
+    ctx.beginPath();
+    if (s.mark === 'spiny') {
+      ctx.moveTo(-size * 0.35, -size * 0.3);
+      ctx.lineTo(-size * 0.2, -size * 0.62);
+      ctx.lineTo(-size * 0.05, -size * 0.34);
+      ctx.lineTo(size * 0.1, -size * 0.6);
+      ctx.lineTo(size * 0.25, -size * 0.32);
+      ctx.closePath();
+    } else if (s.mark === 'dorsal') {
+      ctx.moveTo(-size * 0.15, -size * 0.3);
+      ctx.lineTo(size * 0.05, -size * 0.85);
+      ctx.lineTo(size * 0.3, -size * 0.3);
+      ctx.closePath();
+    } else {
+      ctx.moveTo(-size * 0.3, -size * 0.3);
+      ctx.lineTo(0, -size * 0.62);
+      ctx.lineTo(size * 0.3, -size * 0.3);
+      ctx.closePath();
+    }
+    ctx.fill();
+    // Pectoral fin
+    ctx.beginPath();
+    ctx.ellipse(-size * 0.1, size * 0.28, size * 0.22, size * 0.1, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Gill line
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = Math.max(1.5, size * 0.05);
+    ctx.beginPath();
+    ctx.arc(size * 0.42, 0, size * 0.22, -1.1, 1.1);
+    ctx.stroke();
+    // Scale hints (3 arcs on the flank)
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1.5;
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      ctx.arc(-size * 0.25 + k * size * 0.3, size * 0.05, size * 0.14, 0.3, Math.PI - 0.3);
+      ctx.stroke();
+    }
+    // Species specials
+    if (s.mark === 'whiskers') {
+      ctx.strokeStyle = 'rgba(20,30,35,0.8)';
+      ctx.lineWidth = Math.max(1.5, size * 0.05);
+      ctx.beginPath();
+      ctx.moveTo(size * 0.9, size * 0.08);
+      ctx.quadraticCurveTo(size * 1.25, size * 0.22, size * 1.45, size * 0.45);
+      ctx.moveTo(size * 0.9, -size * 0.05);
+      ctx.quadraticCurveTo(size * 1.25, -size * 0.18, size * 1.45, -size * 0.38);
+      ctx.stroke();
+    }
+    if (s.mark === 'spots') {
+      ctx.fillStyle = 'rgba(20,30,15,0.45)';
+      for (let k = 0; k < 4; k++) {
+        ctx.beginPath();
+        ctx.arc(-size * 0.45 + k * size * 0.3, -size * 0.08 + (k % 2) * size * 0.14, size * 0.07, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // Eye
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(size * 0.62, -size * 0.08, size * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#10181c';
+    ctx.beginPath();
+    ctx.arc(size * 0.64, -size * 0.08, size * 0.045, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   function drawWaterAndShadows(ctx, w, h, t) {
     const waterTop = 310;
     const waterGrad = ctx.createLinearGradient(0, waterTop, 0, h);
@@ -1981,7 +2091,8 @@
       ctx.fillRect(875 - rw / 2, 330 + r * 38, rw, 8);
     }
 
-    // Faint fish shadows swimming underwater
+    // Detailed fish (one per species) swimming underwater — slightly
+    // translucent so they read as under water, but clearly colored fish.
     fishShadows.forEach((f) => {
       if (!state.paused) {
         f.x += f.speed;
@@ -1993,18 +2104,23 @@
       ctx.save();
       ctx.translate(f.x, f.y + Math.sin(t * 1.2 + f.phase) * 6);
       ctx.scale(dir, 1);
-      ctx.fillStyle = 'rgba(2, 18, 25, 0.34)';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, f.size, f.size * 0.38, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-f.size * 0.85, 0);
-      ctx.lineTo(-f.size * 1.45, -f.size * 0.36 + wag);
-      ctx.lineTo(-f.size * 1.45, f.size * 0.36 + wag);
-      ctx.closePath();
-      ctx.fill();
+      ctx.globalAlpha = 0.85;
+      drawDetailedFish(ctx, f.size, f.species, wag);
       ctx.restore();
     });
+
+    // Caught fish flash: the just-caught fish shown big above the water
+    // at its bobber for ~2.5s (set in jerkRod, cleared in tick).
+    if (state.caughtFlash) {
+      const flash = state.caughtFlash;
+      const sp = FISH_SPECIES.find((s) => s.id === flash.speciesId) || FISH_SPECIES[0];
+      ctx.save();
+      ctx.translate(flash.x, flash.y - 46);
+      ctx.rotate(-0.25);
+      ctx.globalAlpha = 0.95;
+      drawDetailedFish(ctx, 64, sp, Math.sin(t * 6) * 8);
+      ctx.restore();
+    }
 
     // Animated sine-wave ripples moving with time
     ctx.lineWidth = 2;
