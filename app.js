@@ -773,7 +773,17 @@
     if (!dom.stage) return;
     const vw = window.innerWidth || 1080;
     const vh = window.innerHeight || 1920;
-    const scale = Math.min(vw / 1080, vh / 1920);
+    // Viewport ngắn hơn 9:16 (Chrome điện thoại còn thanh tab/địa chỉ/điều hướng):
+    // thu ngắn chiều cao stage (ao giữ nguyên 900px, bảng dưới co lại) để scale theo
+    // chiều rộng — game lấp đầy viewport thay vì co nhỏ giữa viền đen.
+    let stageH = 1920;
+    if (vh / vw < 1920 / 1080) {
+      stageH = Math.max(1200, Math.floor((vh * 1080) / vw));
+      dom.stage.style.height = stageH + 'px';
+    } else {
+      dom.stage.style.height = '';
+    }
+    const scale = Math.min(vw / 1080, vh / stageH);
     dom.stage.style.transform = `scale(${scale})`;
   }
 
@@ -1139,11 +1149,15 @@
 
     // Tỉ lệ trúng: gốc 50% + 0,1% mỗi Tym chủ cần (tối đa 95%).
     // Giật hụt -> cá chạy mất như giật trễ.
+    // Bot giữ kiểu cũ: giật kịp trong 3s là trúng (~60% do BOT_CATCH_RATE) — tỉ lệ hụt
+    // chỉ áp cho người chơi thật, tránh bot chạy mất quá nhiều làm game im ắng.
     const rngFn = typeof opts.rng === 'function' ? opts.rng : Math.random;
-    const catchChance = Math.min(CATCH_BASE_PCT + CATCH_PER_LIKE_PCT * (rod.likeBonus || 0), CATCH_MAX_PCT);
-    if (rngFn() * 100 >= catchChance) {
-      escapeFish(rod);
-      return { ok: false, caught: false, escaped: true, reason: 'miss', chance: catchChance };
+    if (!rod.isBot) {
+      const catchChance = Math.min(CATCH_BASE_PCT + CATCH_PER_LIKE_PCT * (rod.likeBonus || 0), CATCH_MAX_PCT);
+      if (rngFn() * 100 >= catchChance) {
+        escapeFish(rod);
+        return { ok: false, caught: false, escaped: true, reason: 'miss', chance: catchChance };
+      }
     }
 
     // Successful catch!
@@ -2008,7 +2022,7 @@
       ctx.strokeStyle = 'rgba(125, 211, 252, 0.48)';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.roundRect(160, 540, 720, 84, 20);
+      ctx.roundRect(130, 540, 780, 84, 20);
       ctx.fill();
       ctx.stroke();
 
