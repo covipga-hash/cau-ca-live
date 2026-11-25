@@ -1223,10 +1223,13 @@
     state.sessionCaught += 1;
 
     // Show the caught fish big above the water for ~2.5s.
+    // NOTE: rod.slot is an INDEX into ROD_SLOTS (not the entry) — resolve it
+    // first; rod.slot.bobberX is undefined and drew the flash at NaN (invisible).
+    const flashSlot = ROD_SLOTS[rod.slot] || ROD_SLOTS[0];
     state.caughtFlash = {
       speciesId: fish.id,
-      x: rod.slot.bobberX,
-      y: rod.slot.bobberY,
+      x: flashSlot.bobberX,
+      y: flashSlot.bobberY,
       until: now + 2500
     };
 
@@ -2118,7 +2121,7 @@
       ctx.translate(flash.x, flash.y - 46);
       ctx.rotate(-0.25);
       ctx.globalAlpha = 0.95;
-      drawDetailedFish(ctx, 64, sp, Math.sin(t * 6) * 8);
+      drawDetailedFish(ctx, 96, sp, Math.sin(t * 6) * 8);
       ctx.restore();
     }
 
