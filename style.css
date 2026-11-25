@@ -106,7 +106,7 @@ body.clean-mode .stage {
 
 .brand-group {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 14px;
   min-width: 0;
 }
@@ -125,9 +125,7 @@ body.clean-mode .stage {
 .game-subtitle {
   font-size: 14px;
   color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
 }
 
 .game-subtitle strong {
@@ -255,6 +253,63 @@ body.clean-mode .stage {
   background: rgba(13, 74, 58, 0.95);
   border-color: var(--emerald);
   color: #ecfdf5;
+}
+
+/* Banner quà nổi bật (avatar + tên + quà + xu + ưu đãi, hiện 5 giây) */
+.gift-banner {
+  position: absolute;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 92%;
+  padding: 12px 22px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.97), rgba(180, 83, 9, 0.97));
+  border: 2px solid var(--gold);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  z-index: 7;
+  pointer-events: none;
+  animation: toastPop 0.25s ease-out;
+}
+
+.gift-banner-avatar,
+.gift-banner-avatar-fallback {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid #fff7d6;
+}
+
+.gift-banner-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gold);
+  font-size: 26px;
+}
+
+.gift-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gift-banner-line {
+  font-size: 21px;
+  font-weight: 800;
+  color: #fffbeb;
+  white-space: nowrap;
+}
+
+.gift-banner-perk {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fde68a;
 }
 
 @keyframes toastPop {
@@ -561,13 +616,41 @@ body.clean-mode .stage {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-main);
-  max-width: 155px;
+  max-width: 190px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.gift-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+}
+
+.gift-avatar-fallback {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sky);
+  color: #06202a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.gift-leader-count {
+  color: var(--text-muted);
+  font-weight: 700;
 }
 
 .gift-leader-pill.rank-1 {
@@ -828,6 +911,24 @@ body.clean-mode .stage {
   border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--border-gold);
+}
+
+/* Banner quà tặng nổi bật (dời lên trên, dễ thấy) */
+.gift-suggestion-box.gift-banner-strip {
+  height: 64px;
+  padding: 0 16px;
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.92), rgba(120, 53, 15, 0.92) 55%, rgba(13, 74, 58, 0.92));
+  border: 2px solid var(--gold);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+}
+
+.gift-suggestion-box.gift-banner-strip .gift-suggest-title {
+  font-size: 17px;
+}
+
+.gift-suggestion-box.gift-banner-strip .gift-chip {
+  height: 44px;
+  font-size: 15px;
 }
 
 .gift-suggest-title {
